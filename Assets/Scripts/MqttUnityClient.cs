@@ -55,7 +55,8 @@ public class MqttUnityClient : M2MqttUnityClient
     public InputField usernameInputField;
     public InputField passwordInputField;
     public Button connectButton;
-
+    public CanvasGroup Panel1;
+    public CanvasGroup Panel2;
 
 
     public List<string> topics = new List<string>();
@@ -68,16 +69,45 @@ public class MqttUnityClient : M2MqttUnityClient
         error_msg("Test message published.");
     }
 
+    public void Change_to_Panel_1()
+    {
+        Panel1.gameObject.SetActive(true);
+        Panel2.gameObject.SetActive(false);
+    }
+
+
+    public void Change_to_Panel_2()
+    {
+        Panel1.gameObject.SetActive(false);
+        Panel2.gameObject.SetActive(true);
+    }
+
     public void Change_Led()
     {
-        string msg = JsonUtility.ToJson(new DataControl("LED", this.ledToggle.isOn ? "ON" : "OFF"));
-        PublishTopics(topics[1], msg);
+        // string msg = JsonUtility.ToJson(new DataControl("LED", this.ledToggle.isOn ? "ON" : "OFF"));
+        // PublishTopics(topics[2], msg);
+        if (ledToggle.isOn)
+        {
+            PublishTopics(topics[2], "1");
+        }
+        else
+        {
+            PublishTopics(topics[2], "0");
+        }
     }
 
     public void Change_Pump()
     {
-        string msg = JsonUtility.ToJson(new DataControl("PUMP", this.pumpToggle.isOn ? "ON": "OFF"));
-        PublishTopics(topics[2], msg);
+        // string msg = JsonUtility.ToJson(new DataControl("PUMP", this.pumpToggle.isOn ? "ON": "OFF"));
+        // PublishTopics(topics[3], msg);
+        if (pumpToggle.isOn)
+        {
+            PublishTopics(topics[3], "1");
+        }
+        else
+        {
+            PublishTopics(topics[3], "0");
+        }
     }
 
     public void SetBrokerAddress(string brokerAddress)
@@ -95,6 +125,7 @@ public class MqttUnityClient : M2MqttUnityClient
             this.mqttUserName = username;
         }
     }
+
     public void SetPassword(string password)
     {
         if (passwordInputField && !updateUI)
@@ -134,13 +165,15 @@ public class MqttUnityClient : M2MqttUnityClient
         SubscribeTopics();
         
         // client.Publish(topics[0], System.Text.Encoding.UTF8.GetBytes(JsonUtility.ToJson(new DataStatus(31f, 70f))), MqttMsgBase.QOS_LEVEL_EXACTLY_ONCE, true);
-
-        SwitchScene();
+        Change_to_Panel_2();
     }
 
     protected override void SubscribeTopics()
     {
-        client.Subscribe(new string[] { topics[0] }, new byte[] { MqttMsgBase.QOS_LEVEL_EXACTLY_ONCE });
+        foreach (string topic in topics)
+        {
+            client.Subscribe(new string[] { topic }, new byte[] { MqttMsgBase.QOS_LEVEL_EXACTLY_ONCE });
+        }
     }
 
     protected override void UnsubscribeTopics()
@@ -216,38 +249,24 @@ public class MqttUnityClient : M2MqttUnityClient
     {
         string msg = System.Text.Encoding.UTF8.GetString(message);
         Debug.Log("Received: " + msg);
-        ProcessMessageStatus(msg);
+        ProcessMessageStatus(topic, msg);
     }
 
-    private void ProcessMessageStatus(string msg){
-        Status_Data Status_Data = JsonConvert.DeserializeObject<Status_Data>(msg);
-        Debug.Log(Status_Data);
-        float value = float.Parse(Status_Data.temperature);  
-        this.temperatureValue.text = Status_Data.temperature + "°C";
-        float value1 = float.Parse(Status_Data.humidity);
-        this.humidityValue.text = Status_Data.humidity + "%";
-
-    }
-
-
-    protected override void Update()
-    {
-        base.Update(); 
-        if (updateUI)
-        {
-            UpdateUI();
+    private void ProcessMessageStatus(string topic, string msg){
+        // Status_Data Status_Data = JsonConvert.DeserializeObject<Status_Data>(msg);
+        // Debug.Log(Status_Data);
+        // float value = float.Parse(Status_Data.temperature);  
+        // this.temperatureValue.text = Status_Data.temperature + "°C";
+        // float value1 = float.Parse(Status_Data.humidity);
+        // this.humidityValue.text = Status_Data.humidity + "%";
+        if (topic == topics[0]){
+            this.temperatureValue.text = msg + "°C";
         }
 
-        if (updateScene == true)
-        {
-            SwitchOut(canvasScene1);
-            SwitchIn(canvasScene2);
+        if (topic == topics[1]){
+            this.humidityValue.text = msg + "%";
         }
-        else if (updateScene == false)
-        {
-            SwitchOut(canvasScene2);
-            SwitchIn(canvasScene1);
-        }
+
     }
 
     private void OnDestroy()
@@ -257,54 +276,19 @@ public class MqttUnityClient : M2MqttUnityClient
 
     private void OnValidate()
     {
-    }
-
-
-    public CanvasGroup canvasScene1;
-    public CanvasGroup canvasScene2;
-    public int offsetPositionX;
-    public int offsetPositionY;
-    public float speed = 1.0F;
-    private float startTime;
-    private bool updateScene = false;
-
-    void SwitchIn(CanvasGroup _canvas)
-    {
-        Vector3 targetPos = new Vector3(0, offsetPositionY ,0);
-        float distCovered = (Time.time - startTime) * speed;
-        float fractionOfJourney = distCovered / offsetPositionX;
-        _canvas.transform.localPosition = Vector3.Lerp(_canvas.transform.localPosition, targetPos, fractionOfJourney);
-    }
-    void SwitchOut(CanvasGroup _canvas)
-    {
-        Vector3 targetPos;
-        if (string.Equals(_canvas.name, "Login"))
-            targetPos = new Vector3(-offsetPositionX, offsetPositionY, 0);
-        else
-            targetPos = new Vector3(offsetPositionX, offsetPositionY, 0);
-        float distCovered = (Time.time - startTime) * speed;
-        float fractionOfJourney = distCovered / offsetPositionX;
-        _canvas.transform.localPosition = Vector3.Lerp(_canvas.transform.localPosition, targetPos, fractionOfJourney);
-    }
-
-    void SwitchScene()
-    {
-        startTime = Time.time;
-        updateScene = !updateScene;
-        if (canvasScene1.interactable == true)
+        if (addressInputField != null)
         {
-            canvasScene1.interactable = false;
-            canvasScene1.blocksRaycasts = false;
-            canvasScene2.interactable = true;
-            canvasScene2.blocksRaycasts = true;
+            addressInputField.text = brokerAddress;
         }
-        else
+        if (usernameInputField != null)
         {
-            canvasScene2.interactable = false;
-            canvasScene2.blocksRaycasts = false;
-            canvasScene1.interactable = true;
-            canvasScene1.blocksRaycasts = true;
+            usernameInputField.text = mqttUserName;
+        }
+        if (passwordInputField != null)
+        {
+            passwordInputField.text = mqttPassword;
         }
     }
-    
+
+
 }
